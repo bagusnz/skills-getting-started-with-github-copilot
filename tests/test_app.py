@@ -1,7 +1,20 @@
+import asyncio
+
 import pytest
-from fastapi.testclient import TestClient
+import httpx
 
 from src.app import app, activities
+
+
+def make_request(method, path, **kwargs):
+    async def _request():
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app),
+            base_url="http://testserver",
+        ) as client:
+            return await client.request(method, path, **kwargs)
+
+    return asyncio.run(_request())
 
 
 @pytest.fixture(autouse=True)
@@ -20,9 +33,8 @@ def reset_activities():
 
 
 def test_unregister_participant_removes_the_student():
-    client = TestClient(app)
-
-    response = client.delete(
+    response = make_request(
+        "DELETE",
         "/activities/Chess Club/participants",
         params={"email": "michael@mergington.edu"},
     )
@@ -33,9 +45,8 @@ def test_unregister_participant_removes_the_student():
 
 
 def test_unregister_participant_returns_404_for_unknown_activity():
-    client = TestClient(app)
-
-    response = client.delete(
+    response = make_request(
+        "DELETE",
         "/activities/Unknown Activity/participants",
         params={"email": "student@mergington.edu"},
     )
